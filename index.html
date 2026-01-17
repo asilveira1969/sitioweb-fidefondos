@@ -20,12 +20,15 @@
     body {
         font-family: 'Inter', sans-serif;
         background: linear-gradient(135deg, var(--primary-navy) 0%, #1A2332 100%);
+        color: white !important;
+        min-height: 100vh;
     }
     .gradient-text {
         background: linear-gradient(135deg, var(--warm-gold) 0%, var(--soft-blue) 100%);
         -webkit-background-clip: text;
         background-clip: text;
         -webkit-text-fill-color: transparent;
+        color: var(--warm-gold); /* Color de respaldo si el gradiente no funciona */
     }
 
     /* ESTA ES LA NUEVA CLASE */
@@ -45,7 +48,7 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between items-center h-16">
                 <div>
-                    <h1 class="text-2xl font-bold gradient-text">FideFondos DeFi</h1>
+                    <h1 class="text-2xl font-bold text-white gradient-text">FideFondos DeFi</h1>
                 </div>
 
                 <div class="hidden md:flex space-x-8">
@@ -78,7 +81,7 @@
 
     <!-- HERO -->
     <section class="pt-32 pb-20 text-center">
-        <h1 class="text-5xl md:text-6xl font-bold gradient-text mb-6" 
+        <h1 class="text-5xl md:text-6xl font-bold text-white mb-6 gradient-text" 
         style="font-family: 'Playfair Display', serif;">
             Gestión Profesional de Inversiones DeFi
         </h1>
@@ -101,22 +104,22 @@
     <section class="pb-20">
         <div class="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-                <div id="tvl-counter" class="text-4xl font-bold gradient-text">0</div>
+                <div id="tvl-counter" class="text-4xl font-bold text-white gradient-text">0</div>
                 <p class="text-gray-400 mt-2">TVL Total Analizado</p>
             </div>
 
             <div>
-                <div id="apy-counter" class="text-4xl font-bold gradient-text">0</div>
+                <div id="apy-counter" class="text-4xl font-bold text-white gradient-text">0</div>
                 <p class="text-gray-400 mt-2">APY Promedio</p>
             </div>
 
             <div>
-                <div id="protocols-counter" class="text-4xl font-bold gradient-text">0</div>
+                <div id="protocols-counter" class="text-4xl font-bold text-white gradient-text">0</div>
                 <p class="text-gray-400 mt-2">Protocolos Evaluados</p>
             </div>
 
             <div>
-                <div id="clients-counter" class="text-4xl font-bold gradient-text">0</div>
+                <div id="clients-counter" class="text-4xl font-bold text-white gradient-text">0</div>
                 <p class="text-gray-400 mt-2">Clientes Activos</p>
             </div>
         </div>
@@ -124,7 +127,7 @@
 
     <!-- PREVIEW ESTRATEGIAS -->
     <section class="pb-24 max-w-7xl mx-auto px-6">
-        <h2 class="text-3xl md:text-4xl font-bold mb-10 gradient-text text-center">
+        <h2 class="text-3xl md:text-4xl font-bold mb-10 text-white gradient-text text-center">
             Nuestras Estrategias de Inversión
         </h2>
 
