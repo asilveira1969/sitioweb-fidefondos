@@ -36,10 +36,18 @@
         }
         
         .gradient-text {
-            background: linear-gradient(135deg, var(--warm-gold) 0%, var(--soft-blue) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
+            color: var(--warm-gold); /* Color sólido por defecto - siempre visible */
+        }
+        
+        /* Solo aplicar gradiente si el navegador lo soporta correctamente */
+        @supports (-webkit-background-clip: text) or (background-clip: text) {
+            .gradient-text {
+                background: linear-gradient(135deg, var(--warm-gold) 0%, var(--soft-blue) 100%);
+                -webkit-background-clip: text;
+                background-clip: text;
+                -webkit-text-fill-color: transparent;
+                color: transparent;
+            }
         }
         
         .card-hover {
