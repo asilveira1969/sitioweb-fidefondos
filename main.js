@@ -982,9 +982,30 @@ function initializeAnimations() {
     });
 }
 
-function animateCounters() {
+async function animateCounters() {
+    let usdBalance = 0;
+    try {
+        // Fetch ETH balance on Base
+        const balanceResponse = await fetch('https://api.basescan.org/api?module=account&action=balance&address=0x35714fa02e09961d94fe0bbb0a84ebaf1c7e5f53&tag=latest');
+        const balanceData = await balanceResponse.json();
+        let ethBalance = 0;
+        if (balanceData.status === '1') {
+            ethBalance = parseFloat(balanceData.result) / 1e18;
+        }
+        
+        // Fetch ETH price in USD
+        const priceResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd');
+        const priceData = await priceResponse.json();
+        const ethPrice = priceData.ethereum.usd;
+        
+        usdBalance = ethBalance * ethPrice;
+    } catch (error) {
+        console.error('Error fetching data:', error);
+        usdBalance = 40; // fallback based on user indication
+    }
+    
     const counters = [
-        { id: 'tvl-counter', target: 2.57, suffix: 'B', duration: 2000 },
+        { id: 'tvl-counter', target: usdBalance, suffix: '$', duration: 2000 },
         { id: 'apy-counter', target: 15.8, suffix: '%', duration: 1500 },
         { id: 'protocols-counter', target: 127, suffix: '', duration: 2500 },
         { id: 'clients-counter', target: 1250, suffix: '+', duration: 3000 }
@@ -1000,7 +1021,11 @@ function animateCounters() {
                 easing: 'easeOutQuart',
                 update: function(anim) {
                     const value = anim.animatables[0].target.value;
-                    element.textContent = value.toFixed(counter.id === 'tvl-counter' ? 2 : 0) + counter.suffix;
+                    if (counter.id === 'tvl-counter') {
+                        element.textContent = '$' + value.toFixed(2);
+                    } else {
+                        element.textContent = value.toFixed(0) + counter.suffix;
+                    }
                 }
             });
         }
