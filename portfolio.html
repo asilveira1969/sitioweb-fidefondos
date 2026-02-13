@@ -575,8 +575,10 @@
           name: "Fondo Base Anastacio III 2025",
           riskLevel: "Alto",
           riskClass: "alto",
+          depositVerified: true,
           chainId: 8453,
           vaultAddress: "0x08cbdcd75b207b291089081838ba04988d402764",
+          krystalUrl: "https://defi.krystal.app/vaults/8453/0x08cbdcd75b207b291089081838ba04988d402764",
           baseToken: "USDC",
           inceptionDate: "2025-11-10",
           performance: [
@@ -595,8 +597,10 @@
           name: "Fondo Conservador Anastacio VI",
           riskLevel: "Medio",
           riskClass: "medio",
+          depositVerified: false,
           chainId: 8453,
           vaultAddress: "0x30148f7648eeacb01b502767dfab449a3485bbb4",
+          krystalUrl: "https://defi.krystal.app/vaults/8453/0x30148f7648eeacb01b502767dfab449a3485bbb4",
           baseToken: "USDC",
           inceptionDate: "2025-11-05",
           performance: [
@@ -615,8 +619,10 @@
           name: "Fondo Blue Chips Anastacio VI 2025",
           riskLevel: "Bajo",
           riskClass: "bajo",
+          depositVerified: false,
           chainId: 8453,
           vaultAddress: "0xe5d1377eca29f30065716f99a439f923f6bedb7b",
+          krystalUrl: "https://defi.krystal.app/vaults/8453/0xe5d1377eca29f30065716f99a439f923f6bedb7b",
           baseToken: "USDC",
           inceptionDate: "2025-11-01",
           performance: [
@@ -635,18 +641,21 @@
       // 1.1) Configuracion on-chain para Base + USDC
       const BASE_CHAIN_ID = 8453;
       const BASE_CHAIN_HEX = "0x2105";
-      const USDC_BASE_ADDRESS = "0x833589fCD6EDB6E08f4c7C32D4f71b54bDA02913";
+      let USDC_BASE_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
       const USDC_DECIMALS = 6;
+      const PRIMARY_VAULT_ID = "base_fondo_anastacio_iii_2025";
+      const INVALID_VAULTS = new Set();
 
       const ERC20_ABI = [
         "function balanceOf(address owner) view returns (uint256)",
         "function allowance(address owner, address spender) view returns (uint256)",
-        "function approve(address spender, uint256 value) returns (bool)",
-        "function decimals() view returns (uint8)"
+        "function approve(address spender, uint256 value) returns (bool)"
       ];
 
-      const VAULT_ABI = [
-        "function deposit(uint256 assets) returns (uint256 shares)"
+      // Metodo verificado para el vault principal en BaseScan:
+      // deposit(uint256 principalAmount, uint256 minShares)
+      const KRYSTAL_VAULT_ABI = [
+        "function deposit(uint256 principalAmount, uint256 minShares) returns (uint256 shares)"
       ];
 
       function notify(message, type = "info") {
@@ -654,13 +663,34 @@
           showNotification(message, type);
           return;
         }
-        // Fallback por si main.js no cargo.
         alert(message);
       }
 
       function shortHash(hash) {
         if (!hash || hash.length < 10) return hash || "";
         return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
+      }
+
+      function normalizeAddress(address) {
+        return ethers.getAddress((address || "").trim());
+      }
+
+      function validateAddressConfig() {
+        try {
+          USDC_BASE_ADDRESS = normalizeAddress(USDC_BASE_ADDRESS);
+        } catch (error) {
+          notify("Error de configuracion: direccion USDC invalida.", "error");
+          throw new Error("INVALID_USDC_ADDRESS");
+        }
+
+        Object.values(VAULTS).forEach((vault) => {
+          try {
+            vault.vaultAddress = normalizeAddress(vault.vaultAddress);
+          } catch (error) {
+            INVALID_VAULTS.add(vault.id);
+            notify(`Direccion invalida detectada en ${vault.name}.`, "error");
+          }
+        });
       }
 
       function isValidUsdcAmount(amountStr) {
@@ -681,9 +711,7 @@
         try {
           await provider.send("eth_requestAccounts", []);
         } catch (error) {
-          if (error && error.code === 4001) {
-            throw new Error("USER_REJECTED_CONNECTION");
-          }
+          if (error && error.code === 4001) throw new Error("USER_REJECTED_CONNECTION");
           throw error;
         }
         return provider.getSigner();
@@ -698,7 +726,6 @@
             method: "wallet_switchEthereumChain",
             params: [{ chainId: BASE_CHAIN_HEX }]
           });
-          return;
         } catch (error) {
           if (error && error.code === 4902) {
             await window.ethereum.request({
@@ -713,59 +740,39 @@
             });
             return;
           }
-          if (error && error.code === 4001) {
-            throw new Error("USER_REJECTED_NETWORK");
-          }
+          if (error && error.code === 4001) throw new Error("USER_REJECTED_NETWORK");
           throw error;
         }
       }
 
-      function mapDepositError(error) {
-        if (!error) return "Error desconocido al procesar el deposito.";
-        if (error.message === "NO_METAMASK") {
-          return "Instala MetaMask para continuar.";
+      function resolveDepositExecutor(vault) {
+        if (vault.id !== PRIMARY_VAULT_ID || !vault.depositVerified) {
+          throw new Error("VAULT_NOT_VALIDATED");
         }
-        if (error.message === "USER_REJECTED_CONNECTION") {
-          return "Conexion de wallet cancelada por el usuario.";
-        }
-        if (error.message === "USER_REJECTED_NETWORK") {
-          return "Cambio de red cancelado por el usuario.";
-        }
-        if (error.message === "INVALID_AMOUNT") {
-          return "Monto invalido. Usa un valor mayor a 0 con maximo 6 decimales.";
-        }
-        if (error.message === "INSUFFICIENT_USDC") {
-          return "Balance USDC insuficiente para ese deposito.";
-        }
-        if (error.code === 4001) {
-          return "Transaccion rechazada por el usuario.";
-        }
-        const fallback = error.shortMessage || error.reason || error.message;
-        return fallback ? `No se pudo completar el deposito: ${fallback}` : "No se pudo completar el deposito.";
+        return executeKrystalVaultDeposit;
       }
 
-      async function depositToVault(vault, amountStr) {
-        if (!isValidUsdcAmount(amountStr)) {
-          throw new Error("INVALID_AMOUNT");
-        }
+      async function executeKrystalVaultDeposit(vault, signer, amount) {
+        const vaultContract = new ethers.Contract(vault.vaultAddress, KRYSTAL_VAULT_ABI, signer);
+        // minShares = 0 en MVP. Se recomienda slippage control en siguiente iteracion.
+        const tx = await vaultContract.deposit(amount, 0n);
+        return tx;
+      }
+
+      async function executeDeposit(vault, amountStr) {
+        if (!isValidUsdcAmount(amountStr)) throw new Error("INVALID_AMOUNT");
+        if (INVALID_VAULTS.has(vault.id)) throw new Error("INVALID_VAULT_ADDRESS");
 
         const provider = getProvider();
         await ensureBaseNetwork(provider);
         const signer = await connectWallet(provider);
         const userAddress = await signer.getAddress();
 
-        const usdc = new ethers.Contract(USDC_BASE_ADDRESS, ERC20_ABI, signer);
-        const vaultContract = new ethers.Contract(vault.vaultAddress, VAULT_ABI, signer);
-
         const amount = ethers.parseUnits(amountStr, USDC_DECIMALS);
-        if (amount <= 0n) {
-          throw new Error("INVALID_AMOUNT");
-        }
+        const usdc = new ethers.Contract(USDC_BASE_ADDRESS, ERC20_ABI, signer);
 
         const balance = await usdc.balanceOf(userAddress);
-        if (balance < amount) {
-          throw new Error("INSUFFICIENT_USDC");
-        }
+        if (balance < amount) throw new Error("INSUFFICIENT_USDC");
 
         const allowance = await usdc.allowance(userAddress, vault.vaultAddress);
         if (allowance < amount) {
@@ -776,10 +783,26 @@
         }
 
         notify("Enviando deposito...", "info");
-        const depositTx = await vaultContract.deposit(amount);
+        const executor = resolveDepositExecutor(vault);
+        const depositTx = await executor(vault, signer, amount);
         notify(`Deposito enviado: ${shortHash(depositTx.hash)}`, "info");
         await depositTx.wait();
         notify("Deposito confirmado en Base.", "success");
+      }
+
+      function mapDepositError(error) {
+        if (!error) return "Error desconocido al procesar el deposito.";
+        if (error.message === "NO_METAMASK") return "Instala MetaMask para continuar.";
+        if (error.message === "USER_REJECTED_CONNECTION") return "Conexion de wallet cancelada por el usuario.";
+        if (error.message === "USER_REJECTED_NETWORK") return "Cambio de red cancelado por el usuario.";
+        if (error.message === "INVALID_AMOUNT") return "Monto invalido. Usa un valor mayor a 0 con maximo 6 decimales.";
+        if (error.message === "INSUFFICIENT_USDC") return "Balance USDC insuficiente para ese deposito.";
+        if (error.message === "INVALID_VAULT_ADDRESS") return "Direccion del fondo invalida. Deposito bloqueado por seguridad.";
+        if (error.message === "VAULT_NOT_VALIDATED") return "Este fondo aun no esta validado para deposito web. Usa su enlace Krystal.";
+        const raw = String(error.shortMessage || error.reason || error.message || "");
+        if (raw.toLowerCase().includes("checksum")) return "Direccion de contrato invalida (checksum).";
+        if (error.code === 4001) return "Transaccion rechazada por el usuario.";
+        return raw ? `No se pudo completar el deposito: ${raw}` : "No se pudo completar el deposito.";
       }
 
       // 2) Cálculo de ROI y APR
@@ -876,6 +899,9 @@
 
         Object.values(VAULTS).forEach(vault => {
           const stats = computeStats(vault);
+          const isDepositEnabled = vault.id === PRIMARY_VAULT_ID && vault.depositVerified && !INVALID_VAULTS.has(vault.id);
+          const depositButtonText = isDepositEnabled ? "Depositar" : "Depositar (pendiente)";
+          const depositDisabledAttr = isDepositEnabled ? "" : "disabled";
 
           const card = document.createElement("article");
           card.className = "vault-card";
@@ -910,9 +936,10 @@
               <span>Desde: ${vault.inceptionDate}</span>
               <div class="vault-actions">
                 <button class="vault-btn secondary" type="button">Retirar</button>
-                <button class="vault-btn primary" type="button" data-action="deposit" data-vault-id="${vault.id}">Depositar</button>
+                <button class="vault-btn primary" type="button" data-action="deposit" data-vault-id="${vault.id}" ${depositDisabledAttr}>${depositButtonText}</button>
               </div>
             </div>
+            ${isDepositEnabled ? "" : `<div class="text-xs text-amber-300 mt-2">Deposito web aun no validado. Abrir en <a href="${vault.krystalUrl}" target="_blank" rel="noopener noreferrer" class="underline">Krystal</a>.</div>`}
           `;
 
           // Click en la tarjeta → actualizar gráfico
@@ -945,13 +972,27 @@
 
               const amountStr = prompt(`Ingresa monto a depositar en USDC para "${selectedVault.name}"`);
               if (amountStr === null) return;
+              if (!isValidUsdcAmount(amountStr.trim())) {
+                notify("Monto invalido. Usa un valor mayor a 0 con maximo 6 decimales.", "error");
+                return;
+              }
+
+              const finalConfirm = confirm(
+                `Confirmar deposito\n\n` +
+                `Fondo: ${selectedVault.name}\n` +
+                `Token: USDC (Base)\n` +
+                `Monto: ${amountStr.trim()} USDC\n` +
+                `Contrato: ${selectedVault.vaultAddress}\n` +
+                `Red: Base`
+              );
+              if (!finalConfirm) return;
 
               depositBtn.disabled = true;
               depositBtn.style.opacity = "0.7";
               depositBtn.textContent = "Procesando...";
 
               try {
-                await depositToVault(selectedVault, amountStr.trim());
+                await executeDeposit(selectedVault, amountStr.trim());
               } catch (error) {
                 notify(mapDepositError(error), "error");
               } finally {
@@ -968,6 +1009,12 @@
 
       // 6) Inicialización
       document.addEventListener("DOMContentLoaded", () => {
+        try {
+          validateAddressConfig();
+        } catch (error) {
+          Object.values(VAULTS).forEach((vault) => INVALID_VAULTS.add(vault.id));
+        }
+
         renderVaultCards();
 
         const defaultVault = VAULTS.base_fondo_anastacio_iii_2025;
