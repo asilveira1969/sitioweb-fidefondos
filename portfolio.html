@@ -565,6 +565,7 @@
      <!-- Scripts al final del body -->
     <script src="main.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
 
     <script>
       // 1) Definimos los tres fondos
@@ -630,6 +631,156 @@
           ]
         }
       };
+
+      // 1.1) Configuracion on-chain para Base + USDC
+      const BASE_CHAIN_ID = 8453;
+      const BASE_CHAIN_HEX = "0x2105";
+      const USDC_BASE_ADDRESS = "0x833589fCD6EDB6E08f4c7C32D4f71b54bDA02913";
+      const USDC_DECIMALS = 6;
+
+      const ERC20_ABI = [
+        "function balanceOf(address owner) view returns (uint256)",
+        "function allowance(address owner, address spender) view returns (uint256)",
+        "function approve(address spender, uint256 value) returns (bool)",
+        "function decimals() view returns (uint8)"
+      ];
+
+      const VAULT_ABI = [
+        "function deposit(uint256 assets) returns (uint256 shares)"
+      ];
+
+      function notify(message, type = "info") {
+        if (typeof showNotification === "function") {
+          showNotification(message, type);
+          return;
+        }
+        // Fallback por si main.js no cargo.
+        alert(message);
+      }
+
+      function shortHash(hash) {
+        if (!hash || hash.length < 10) return hash || "";
+        return `${hash.slice(0, 8)}...${hash.slice(-6)}`;
+      }
+
+      function isValidUsdcAmount(amountStr) {
+        const normalized = (amountStr || "").trim();
+        if (!normalized) return false;
+        if (!/^\d+(\.\d{1,6})?$/.test(normalized)) return false;
+        return Number(normalized) > 0;
+      }
+
+      function getProvider() {
+        if (!window.ethereum || !window.ethers) {
+          throw new Error("NO_METAMASK");
+        }
+        return new ethers.BrowserProvider(window.ethereum);
+      }
+
+      async function connectWallet(provider) {
+        try {
+          await provider.send("eth_requestAccounts", []);
+        } catch (error) {
+          if (error && error.code === 4001) {
+            throw new Error("USER_REJECTED_CONNECTION");
+          }
+          throw error;
+        }
+        return provider.getSigner();
+      }
+
+      async function ensureBaseNetwork(provider) {
+        const current = await provider.getNetwork();
+        if (Number(current.chainId) === BASE_CHAIN_ID) return;
+
+        try {
+          await window.ethereum.request({
+            method: "wallet_switchEthereumChain",
+            params: [{ chainId: BASE_CHAIN_HEX }]
+          });
+          return;
+        } catch (error) {
+          if (error && error.code === 4902) {
+            await window.ethereum.request({
+              method: "wallet_addEthereumChain",
+              params: [{
+                chainId: BASE_CHAIN_HEX,
+                chainName: "Base Mainnet",
+                nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+                rpcUrls: ["https://mainnet.base.org"],
+                blockExplorerUrls: ["https://basescan.org"]
+              }]
+            });
+            return;
+          }
+          if (error && error.code === 4001) {
+            throw new Error("USER_REJECTED_NETWORK");
+          }
+          throw error;
+        }
+      }
+
+      function mapDepositError(error) {
+        if (!error) return "Error desconocido al procesar el deposito.";
+        if (error.message === "NO_METAMASK") {
+          return "Instala MetaMask para continuar.";
+        }
+        if (error.message === "USER_REJECTED_CONNECTION") {
+          return "Conexion de wallet cancelada por el usuario.";
+        }
+        if (error.message === "USER_REJECTED_NETWORK") {
+          return "Cambio de red cancelado por el usuario.";
+        }
+        if (error.message === "INVALID_AMOUNT") {
+          return "Monto invalido. Usa un valor mayor a 0 con maximo 6 decimales.";
+        }
+        if (error.message === "INSUFFICIENT_USDC") {
+          return "Balance USDC insuficiente para ese deposito.";
+        }
+        if (error.code === 4001) {
+          return "Transaccion rechazada por el usuario.";
+        }
+        const fallback = error.shortMessage || error.reason || error.message;
+        return fallback ? `No se pudo completar el deposito: ${fallback}` : "No se pudo completar el deposito.";
+      }
+
+      async function depositToVault(vault, amountStr) {
+        if (!isValidUsdcAmount(amountStr)) {
+          throw new Error("INVALID_AMOUNT");
+        }
+
+        const provider = getProvider();
+        await ensureBaseNetwork(provider);
+        const signer = await connectWallet(provider);
+        const userAddress = await signer.getAddress();
+
+        const usdc = new ethers.Contract(USDC_BASE_ADDRESS, ERC20_ABI, signer);
+        const vaultContract = new ethers.Contract(vault.vaultAddress, VAULT_ABI, signer);
+
+        const amount = ethers.parseUnits(amountStr, USDC_DECIMALS);
+        if (amount <= 0n) {
+          throw new Error("INVALID_AMOUNT");
+        }
+
+        const balance = await usdc.balanceOf(userAddress);
+        if (balance < amount) {
+          throw new Error("INSUFFICIENT_USDC");
+        }
+
+        const allowance = await usdc.allowance(userAddress, vault.vaultAddress);
+        if (allowance < amount) {
+          notify("Aprobando USDC...", "info");
+          const approveTx = await usdc.approve(vault.vaultAddress, amount);
+          notify(`Aprobacion enviada: ${shortHash(approveTx.hash)}`, "info");
+          await approveTx.wait();
+        }
+
+        notify("Enviando deposito...", "info");
+        const depositTx = await vaultContract.deposit(amount);
+        notify(`Deposito enviado: ${shortHash(depositTx.hash)}`, "info");
+        await depositTx.wait();
+        notify("Deposito confirmado en Base.", "success");
+      }
 
       // 2) Cálculo de ROI y APR
       function computeStats(vault) {
@@ -759,7 +910,7 @@
               <span>Desde: ${vault.inceptionDate}</span>
               <div class="vault-actions">
                 <button class="vault-btn secondary" type="button">Retirar</button>
-                <button class="vault-btn primary" type="button">Depositar</button>
+                <button class="vault-btn primary" type="button" data-action="deposit" data-vault-id="${vault.id}">Depositar</button>
               </div>
             </div>
           `;
@@ -767,6 +918,7 @@
           // Click en la tarjeta → actualizar gráfico
           card.addEventListener("click", (e) => {
             if (e.target && e.target.classList.contains("vault-copy-btn")) return;
+            if (e.target && e.target.closest(".vault-actions")) return;
             renderChart(vault);
           });
 
@@ -776,6 +928,37 @@
             copyBtn.addEventListener("click", (e) => {
               e.stopPropagation();
               copyToClipboard(vault.vaultAddress);
+            });
+          }
+
+          const depositBtn = card.querySelector('[data-action="deposit"]');
+          if (depositBtn) {
+            depositBtn.addEventListener("click", async (e) => {
+              e.stopPropagation();
+
+              const vaultId = depositBtn.dataset.vaultId;
+              const selectedVault = VAULTS[vaultId];
+              if (!selectedVault) {
+                notify("No se encontro el fondo seleccionado.", "error");
+                return;
+              }
+
+              const amountStr = prompt(`Ingresa monto a depositar en USDC para "${selectedVault.name}"`);
+              if (amountStr === null) return;
+
+              depositBtn.disabled = true;
+              depositBtn.style.opacity = "0.7";
+              depositBtn.textContent = "Procesando...";
+
+              try {
+                await depositToVault(selectedVault, amountStr.trim());
+              } catch (error) {
+                notify(mapDepositError(error), "error");
+              } finally {
+                depositBtn.disabled = false;
+                depositBtn.style.opacity = "1";
+                depositBtn.textContent = "Depositar";
+              }
             });
           }
 
@@ -795,4 +978,3 @@
     </script>
   </body>
 </html>
-
