@@ -168,6 +168,67 @@
         </div>
     </section>
 
+    <!-- MODAL: EVALUACION DE RIESGO -->
+    <div id="risk-modal" class="fixed inset-0 z-50 hidden">
+        <div class="absolute inset-0 bg-black bg-opacity-70" onclick="closeRiskAssessment()"></div>
+        <div class="relative min-h-screen flex items-center justify-center px-4 py-8">
+            <div class="w-full max-w-2xl rounded-2xl bg-white text-gray-900 shadow-2xl">
+                <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-xl font-semibold">Evaluacion de Perfil de Inversor</h2>
+                    <button
+                        onclick="closeRiskAssessment()"
+                        class="text-gray-500 hover:text-gray-700 text-2xl leading-none"
+                        aria-label="Cerrar evaluacion">
+                        &times;
+                    </button>
+                </div>
+
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <div class="flex items-center justify-between text-sm text-gray-600 mb-2">
+                        <span>Pregunta <span id="current-question">1</span> de 8</span>
+                        <span>Progreso</span>
+                    </div>
+                    <div class="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="h-2 bg-blue-500" style="width: 12.5%;"></div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-6">
+                    <div id="question-container"></div>
+
+                    <div id="assessment-results" class="hidden">
+                        <div class="space-y-4">
+                            <div class="p-4 rounded-lg bg-blue-50 border border-blue-100">
+                                <p class="text-sm text-blue-700">Puntaje de riesgo</p>
+                                <p id="risk-score" class="text-3xl font-bold text-blue-900">0</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Nivel recomendado</p>
+                                <p id="risk-level" class="text-lg font-semibold text-gray-900"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Estrategia sugerida</p>
+                                <p id="recommended-strategy" class="text-gray-800"></p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 mb-1">Proyeccion</p>
+                                <p id="projected-returns" class="text-gray-800"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="px-6 py-4 border-t border-gray-200 flex justify-end">
+                    <button
+                        onclick="closeRiskAssessment()"
+                        class="px-4 py-2 rounded-lg bg-gray-900 text-white hover:bg-black transition">
+                        Cerrar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="main.js"></script>
 </body>
 </html>

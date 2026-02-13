@@ -374,9 +374,24 @@ function setupEventListeners() {
 function startRiskAssessment() {
     const modal = document.getElementById('risk-modal');
     if (modal) {
+        const questionContainer = document.getElementById('question-container');
+        const resultsContainer = document.getElementById('assessment-results');
+        const progressBar = document.getElementById('progress-bar');
+
         modal.classList.remove('hidden');
         currentQuestionIndex = 0;
         riskAssessmentScore = 0;
+
+        if (questionContainer) {
+            questionContainer.style.display = 'block';
+        }
+        if (resultsContainer) {
+            resultsContainer.classList.add('hidden');
+        }
+        if (progressBar) {
+            progressBar.style.width = '12.5%';
+        }
+
         loadQuestion();
     }
 }
@@ -1138,22 +1153,22 @@ function toggleFAQ(index) {
     const icon = document.getElementById(`faq-icon-${index}`);
     
     if (answer && icon) {
-        const isOpen = answer.classList.contains('open');
+        const isOpen = answer.classList.contains('active');
         
         if (isOpen) {
-            answer.classList.remove('open');
+            answer.classList.remove('active');
             icon.style.transform = 'rotate(0deg)';
         } else {
             // Close all other FAQs
             document.querySelectorAll('.faq-answer').forEach(el => {
-                el.classList.remove('open');
+                el.classList.remove('active');
             });
             document.querySelectorAll('[id^="faq-icon-"]').forEach(el => {
                 el.style.transform = 'rotate(0deg)';
             });
             
             // Open current FAQ
-            answer.classList.add('open');
+            answer.classList.add('active');
             icon.style.transform = 'rotate(180deg)';
         }
     }
@@ -1202,11 +1217,4 @@ function showNotification(message, type = 'info') {
             }
         });
     }, 3000);
-}
-
-// Initialize everything when DOM is ready
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializePage);
-} else {
-    initializePage();
 }
