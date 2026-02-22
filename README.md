@@ -57,3 +57,21 @@ Este proyecto está diseñado para ser desplegado en GitHub Pages y conectado a 
 ## 📄 Licencia
 
 © 2025 FideFondos. Todos los derechos reservados.
+
+## PC Migration
+
+This repository uses a migration standard for moving work between PCs.
+
+- Checklist standard: `docs/migration-checklist.md`
+- Project migration report (current PC): `docs/migration-report-fidefondos-2026-02-21.md`
+- Verification script (non-destructive):
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify-migration.ps1
+```
+
+Optional parameters:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/verify-migration.ps1 -repo_path . -expected_branch main -expected_remote origin -project_type static-web
+```
