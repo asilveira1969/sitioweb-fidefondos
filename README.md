@@ -1,4 +1,4 @@
-# FideFondos DeFi - Plataforma de Gestión de Inversiones
+﻿# FideFondos DeFi - Plataforma de Gestión de Inversiones
 
 Sitio web profesional para gestión de inversiones en finanzas descentralizadas (DeFi).
 
@@ -11,7 +11,7 @@ Sitio web profesional para gestión de inversiones en finanzas descentralizadas 
 
 ## 📁 Estructura del Proyecto
 
-```
+```text
 ├── index.html              # Página principal
 ├── strategies.html         # Estrategias de inversión
 ├── portfolio.html          # Dashboard de portafolio
