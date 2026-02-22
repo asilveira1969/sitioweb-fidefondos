@@ -10,6 +10,8 @@
 - `git status --short --branch`: `## main...origin/main`
 - `git remote -v`: origin fetch/push configured to GitHub
 - `git log --oneline -5`: recent history available
+- Manual browser validation: user confirmed site works correctly on this PC (all core pages checked)
+- `git push origin main`: successful on 2026-02-22 (`a91eb80 -> 53409f2`)
 - Workflow folder: `.github/workflows` not found
 
 ## Results (Essential)
@@ -23,14 +25,12 @@
 | CDN references present | PASS | Medium | Tailwind, Anime.js, ECharts, Chart.js, Typed.js found in source/docs | None |
 | Encoding quality in docs | WARN | Medium | README shows mojibake patterns in current content | normalize README to UTF-8 text |
 | Deploy workflow config in repo | WARN | Low | no `.github/workflows` directory | valid if deploy is manual/GitHub Pages external config |
-| Functional browser validation | WARN | Critical | not executable from CLI-only validation pass | run manual Phase D checklist |
-| Push continuity from this PC | WARN | Critical | remote exists but push test not executed in this pass | run `git push --dry-run` or real push |
+| Functional browser validation | PASS | Critical | user confirmed site functioning correctly in browser on this PC | None |
+| Push continuity from this PC | PASS | Critical | `git push origin main` succeeded (`a91eb80 -> 53409f2`) | None |
 
 ## Final Status
 - `Apto para trabajo local` (technical essentials passed).
-- `Pendiente` for full migration closure until manual functional validation and push continuity test are executed.
+- `Apto` for migration closure (manual functional validation and push continuity confirmed).
 
 ## Pending Items
-- Run browser validation for all core pages (Phase D).
-- Validate push from this PC to `origin/main`.
 - Fix README encoding artifacts.
